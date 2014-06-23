@@ -1,10 +1,77 @@
-$            = jQuery
-$.payment    = {}
-$.payment.fn = {}
-$.fn.payment = (method, args...) ->
-  $.payment.fn[method].apply(this, args)
+@payment = payment = {}
 
-# Utils
+# General utils
+
+hasClass = (element, className) ->
+  new RegExp(' ' + className + ' ').test(' ' + element.className + ' ');
+
+addClass = (element, className) ->
+  if element.classList
+    return element.classList.add(className)
+  if element.className
+    element.className += " " + className
+    return
+  element.className = className
+  return
+
+toggleClass = (element, className, force) ->
+  if element.classList
+    return element.classList.toggle(className, force)
+  add = if typeof force is "undefined" then !hasClass(element, className) else force
+  if add then addClass(element, className) else removeClass(element, className)
+  return
+
+removeClass = (element, className) ->
+  if element.classList
+    return element.classList.remove(className)
+  reg = new RegExp("(?:^|\\s+)" + className + "(?!\S)", "g")
+  element.className = element.className.replace(reg, "")
+  return
+
+trim = (string) ->
+  # Allow integers by converting it first.
+  string = '' + string
+  if String.prototype.trim
+    String.prototype.trim.call(string)
+  else
+    string.replace(/^\s+|\s+$/g, '')
+
+on_ = (element, eventName, callback) ->
+  originalCallback = callback
+  callback = (e) ->
+    e = normalizeEvent(e)
+    originalCallback(e)
+  if element.addEventListener
+    return element.addEventListener(eventName, callback, false)
+
+  if element.attachEvent
+    eventName = "on" + eventName
+    return element.attachEvent(eventName, callback)
+
+  element['on' + eventName] = callback
+  return
+
+preventDefault = (eventObject) ->
+  if typeof eventObject.preventDefault is "function"
+    eventObject.preventDefault()
+    return
+  eventObject.returnValue = false
+  false
+
+normalizeEvent = (e) ->
+  original = e
+  e =
+    which: if original.which? then original.which
+    # Fallback to srcElement for ie8 support
+    target: original.target or original.srcElement
+    preventDefault: -> preventDefault(original)
+    originalEvent: original
+  if not e.which?
+    e.which = if original.charCode? then original.charCode else original.keyCode
+  return e
+
+
+# Library specific utils
 
 defaultFormat = /(\d{1,4})/g
 
@@ -104,10 +171,10 @@ luhnCheck = (num) ->
 
   sum % 10 == 0
 
-hasTextSelected = ($target) ->
+hasTextSelected = (target) ->
   # If some text is selected
-  return true if $target.prop('selectionStart')? and
-    $target.prop('selectionStart') isnt $target.prop('selectionEnd')
+  return true if target.selectionStart? and
+    target.selectionStart isnt target.selectionEnd
 
   # If some text is selected in IE
   return true if document?.selection?.createRange?().text
@@ -120,18 +187,17 @@ hasTextSelected = ($target) ->
 
 reFormatCardNumber = (e) ->
   setTimeout =>
-    $target = $(e.currentTarget)
-    value   = $target.val()
-    value   = $.payment.formatCardNumber(value)
-    $target.val(value)
+    target = e.target
+    value   = payment.formatCardNumberString(target.value)
+    target.value = value
 
 formatCardNumber = (e) ->
   # Only format if input is a number
   digit = String.fromCharCode(e.which)
   return unless /^\d+$/.test(digit)
 
-  $target = $(e.currentTarget)
-  value   = $target.val()
+  target = e.target
+  value   = target.value
   card    = cardFromNumber(value + digit)
   length  = (value.replace(/\D/g, '') + digit).length
 
@@ -140,8 +206,8 @@ formatCardNumber = (e) ->
   return if length >= upperLength
 
   # Return if focus isn't at the end of the text
-  return if $target.prop('selectionStart')? and
-    $target.prop('selectionStart') isnt value.length
+  return if target.selectionStart? and
+    target.selectionStart isnt value.length
 
   if card && card.type is 'amex'
     # Amex cards are formatted differently
@@ -152,33 +218,31 @@ formatCardNumber = (e) ->
   # If '4242' + 4
   if re.test(value)
     e.preventDefault()
-    $target.val(value + ' ' + digit)
+    target.value = value + ' ' + digit
 
   # If '424' + 2
   else if re.test(value + digit)
     e.preventDefault()
-    $target.val(value + digit + ' ')
+    target.value = value + digit + ' '
 
 formatBackCardNumber = (e) ->
-  $target = $(e.currentTarget)
-  value   = $target.val()
-
-  return if e.meta
+  target = e.target
+  value  = target.value
 
   # Return unless backspacing
   return unless e.which is 8
 
   # Return if focus isn't at the end of the text
-  return if $target.prop('selectionStart')? and
-    $target.prop('selectionStart') isnt value.length
+  return if target.selectionStart? and
+    target.selectionStart isnt value.length
 
   # Remove the trailing space
   if /\d\s$/.test(value)
     e.preventDefault()
-    $target.val(value.replace(/\d\s$/, ''))
+    target.value = value.replace(/\d\s$/, '')
   else if /\s\d?$/.test(value)
     e.preventDefault()
-    $target.val(value.replace(/\s\d?$/, ''))
+    target.value = value.replace(/\s\d?$/, '')
 
 # Format Expiry
 
@@ -187,67 +251,65 @@ formatExpiry = (e) ->
   digit = String.fromCharCode(e.which)
   return unless /^\d+$/.test(digit)
 
-  $target = $(e.currentTarget)
-  val     = $target.val() + digit
+  target = e.target
+  value  = target.value + digit
 
-  if /^\d$/.test(val) and val not in ['0', '1']
+  if /^\d$/.test(value) and value not in ['0', '1']
     e.preventDefault()
-    $target.val("0#{val} / ")
+    target.value = "0#{value} / "
 
-  else if /^\d\d$/.test(val)
+  else if /^\d\d$/.test(value)
     e.preventDefault()
-    $target.val("#{val} / ")
+    target.value = "#{value} / "
 
 formatForwardExpiry = (e) ->
   digit = String.fromCharCode(e.which)
   return unless /^\d+$/.test(digit)
 
-  $target = $(e.currentTarget)
-  val     = $target.val()
+  target = e.target
+  value  = target.value
 
-  if /^\d\d$/.test(val)
-    $target.val("#{val} / ")
+  if /^\d\d$/.test(value)
+    target.value = "#{value} / "
 
 formatForwardSlash = (e) ->
   slash = String.fromCharCode(e.which)
   return unless slash is '/'
 
-  $target = $(e.currentTarget)
-  val     = $target.val()
+  target = e.target
+  value  = target.value
 
-  if /^\d$/.test(val) and val isnt '0'
-    $target.val("0#{val} / ")
+  if /^\d$/.test(value) and value isnt '0'
+    target.value = "0#{val} / "
 
 formatBackExpiry = (e) ->
-  # If shift+backspace is pressed
-  return if e.meta
-
-  $target = $(e.currentTarget)
-  value   = $target.val()
+  target = e.target
+  value  = target.value
 
   # Return unless backspacing
   return unless e.which is 8
 
   # Return if focus isn't at the end of the text
-  return if $target.prop('selectionStart')? and
-    $target.prop('selectionStart') isnt value.length
+  return if target.selectionStart? and
+    target.selectionStart isnt value.length
 
   # Remove the trailing space
   if /\d(\s|\/)+$/.test(value)
     e.preventDefault()
-    $target.val(value.replace(/\d(\s|\/)*$/, ''))
+    target.value = value.replace(/\d(\s|\/)*$/, '')
   else if /\s\/\s?\d?$/.test(value)
     e.preventDefault()
-    $target.val(value.replace(/\s\/\s?\d?$/, ''))
+    target.value = value.replace(/\s\/\s?\d?$/, '')
 
 #  Restrictions
 
 restrictNumeric = (e) ->
+
   # Key event is for a browser shortcut
-  return true if e.metaKey or e.ctrlKey
+  return true if e.originalEvent.metaKey or e.originalEvent.ctrlKey
 
   # If keycode is a space
-  return false if e.which is 32
+  return e.preventDefault() if e.which is 32
 
   # If keycode is a special char (WebKit)
   return true if e.which is 0
@@ -258,101 +320,96 @@ restrictNumeric = (e) ->
   input = String.fromCharCode(e.which)
 
   # Char is a number or a space
-  !!/[\d\s]/.test(input)
+  return e.preventDefault() if !/[\d\s]/.test(input)
 
 restrictCardNumber = (e) ->
-  $target = $(e.currentTarget)
+  target = e.target
   digit   = String.fromCharCode(e.which)
   return unless /^\d+$/.test(digit)
 
-  return if hasTextSelected($target)
+  return if hasTextSelected(target)
 
   # Restrict number of digits
-  value = ($target.val() + digit).replace(/\D/g, '')
+  value = (target.value + digit).replace(/\D/g, '')
   card  = cardFromNumber(value)
 
   if card
-    value.length <= card.length[card.length.length - 1]
+    e.preventDefault() if value.length > card.length[card.length.length - 1]
   else
     # All other cards are 16 digits long
-    value.length <= 16
+    e.preventDefault() if value.length > 16
 
 restrictExpiry = (e) ->
-  $target = $(e.currentTarget)
+  target = e.target
   digit   = String.fromCharCode(e.which)
   return unless /^\d+$/.test(digit)
 
-  return if hasTextSelected($target)
+  return if hasTextSelected(target)
 
-  value = $target.val() + digit
+  value = target.value + digit
   value = value.replace(/\D/g, '')
 
-  return false if value.length > 6
+  e.preventDefault() if value.length > 6
 
 restrictCVC = (e) ->
-  $target = $(e.currentTarget)
+  target = e.target
   digit   = String.fromCharCode(e.which)
   return unless /^\d+$/.test(digit)
 
-  return if hasTextSelected($target)
+  return if hasTextSelected(target)
 
-  val     = $target.val() + digit
-  val.length <= 4
+  value = target.value + digit
+  e.preventDefault() if value.length > 4
 
 setCardType = (e) ->
-  $target  = $(e.currentTarget)
-  val      = $target.val()
-  cardType = $.payment.cardType(val) or 'unknown'
+  target = e.target
+  value    = target.value
+  cardType = payment.cardType(value) or 'unknown'
 
-  unless $target.hasClass(cardType)
-    allTypes = (card.type for card in cards)
+  unless hasClass(target, cardType)
+    removeClass(target, 'unknown')
+    for card in cards
+      removeClass(target, card.type)
 
-    $target.removeClass('unknown')
-    $target.removeClass(allTypes.join(' '))
-
-    $target.addClass(cardType)
-    $target.toggleClass('identified', cardType isnt 'unknown')
-    $target.trigger('payment.cardType', cardType)
+    addClass(target, cardType)
+    toggleClass(target, 'identified', cardType isnt 'unknown')
 
 # Public
 
 # Formatting
 
-$.payment.fn.formatCardCVC = ->
-  @payment('restrictNumeric')
-  @on('keypress', restrictCVC)
-  this
+payment.formatCardCVC = (element) ->
+  payment.restrictNumeric(element)
+  on_(element, 'keypress', restrictCVC)
+  element
 
-$.payment.fn.formatCardExpiry = ->
-  @payment('restrictNumeric')
-  @on('keypress', restrictExpiry)
-  @on('keypress', formatExpiry)
-  @on('keypress', formatForwardSlash)
-  @on('keypress', formatForwardExpiry)
-  @on('keydown',  formatBackExpiry)
-  this
+payment.formatCardExpiry = (element) ->
+  payment.restrictNumeric(element)
+  on_(element, 'keypress', restrictExpiry)
+  on_(element, 'keypress', formatExpiry)
+  on_(element, 'keypress', formatForwardSlash)
+  on_(element, 'keypress', formatForwardExpiry)
+  on_(element, 'keydown',  formatBackExpiry)
+  element
 
-$.payment.fn.formatCardNumber = ->
-  @payment('restrictNumeric')
-  @on('keypress', restrictCardNumber)
-  @on('keypress', formatCardNumber)
-  @on('keydown', formatBackCardNumber)
-  @on('keyup', setCardType)
-  @on('paste', reFormatCardNumber)
-  this
+payment.formatCardNumber = (element) ->
+  payment.restrictNumeric(element)
+  on_(element, 'keypress', restrictCardNumber)
+  on_(element, 'keypress', formatCardNumber)
+  on_(element, 'keydown', formatBackCardNumber)
+  on_(element, 'keyup', setCardType)
+  on_(element, 'paste', reFormatCardNumber)
+  element
 
 # Restrictions
 
-$.payment.fn.restrictNumeric = ->
-  @on('keypress', restrictNumeric)
-  this
+payment.restrictNumeric = (element) ->
+  on_(element, 'keypress', restrictNumeric)
+  element
 
 # Validations
 
-$.payment.fn.cardExpiryVal = ->
-  $.payment.cardExpiryVal($(this).val())
-
-$.payment.cardExpiryVal = (value) ->
+payment.cardExpiryVal = (value) ->
   value = value.replace(/\s/g, '')
   [month, year] = value.split('/', 2)
 
@@ -367,7 +424,7 @@ $.payment.cardExpiryVal = (value) ->
 
   month: month, year: year
 
-$.payment.validateCardNumber = (num) ->
+payment.validateCardNumber = (num) ->
   num = (num + '').replace(/\s+|-/g, '')
   return false unless /^\d+$/.test(num)
 
@@ -377,15 +434,15 @@ $.payment.validateCardNumber = (num) ->
   num.length in card.length and
     (card.luhn is false or luhnCheck(num))
 
-$.payment.validateCardExpiry = (month, year) =>
+payment.validateCardExpiry = (month, year) =>
   # Allow passing an object
   if typeof month is 'object' and 'month' of month
     {month, year} = month
 
   return false unless month and year
 
-  month = $.trim(month)
-  year  = $.trim(year)
+  month = trim(month)
+  year  = trim(year)
 
   return false unless /^\d+$/.test(month)
   return false unless /^\d+$/.test(year)
@@ -409,8 +466,8 @@ $.payment.validateCardExpiry = (month, year) =>
 
   expiry > currentTime
 
-$.payment.validateCardCVC = (cvc, type) ->
-  cvc = $.trim(cvc)
+payment.validateCardCVC = (cvc, type) ->
+  cvc = trim(cvc)
   return false unless /^\d+$/.test(cvc)
 
   if type
@@ -420,11 +477,11 @@ $.payment.validateCardCVC = (cvc, type) ->
     # Check against all types
     cvc.length >= 3 and cvc.length <= 4
 
-$.payment.cardType = (num) ->
+payment.cardType = (num) ->
   return null unless num
   cardFromNumber(num)?.type or null
 
-$.payment.formatCardNumber = (num) ->
+payment.formatCardNumberString = (num) ->
   card = cardFromNumber(num)
   return num unless card
 
