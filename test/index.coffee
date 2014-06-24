@@ -261,7 +261,7 @@ describe 'payment.utils', ->
     it 'that is the first in className', ->
       el = createElementWithClass('first second third')
       payment.utils.removeClass(el, 'first')
-      assert.equal el.className, ' second third'
+      assert.equal el.className, 'second third'
 
     it 'that is in the middle of the className', ->
       el = createElementWithClass('first second third')

@@ -26,7 +26,7 @@ removeClass = (element, className) ->
   if element.classList
     return element.classList.remove(className)
   reg = new RegExp("(?:^|\\s+)" + className + "(?!\\S)", "g")
-  element.className = element.className.replace(reg, "")
+  element.className = trim(element.className.replace(reg, ""))
   return
 
 trim = (string) ->
