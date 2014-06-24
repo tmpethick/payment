@@ -18,7 +18,7 @@ describe 'payment', ->
       topic = payment.validateCardNumber '4242424242424242'
       assert.equal topic, true
 
-    it 'that has dashes in it but is valid', ->
+    it 'should succeed if it has dashes in it but is valid', ->
       topic = payment.validateCardNumber '4242-4242-4242-4242'
       assert.equal topic, true
 
