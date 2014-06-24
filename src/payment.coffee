@@ -8,6 +8,7 @@ hasClass = (element, className) ->
 addClass = (element, className) ->
   if element.classList
     return element.classList.add(className)
+  return if hasClass(element, className)
   if element.className
     element.className += " " + className
     return
