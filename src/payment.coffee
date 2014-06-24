@@ -24,7 +24,7 @@ toggleClass = (element, className, force) ->
 removeClass = (element, className) ->
   if element.classList
     return element.classList.remove(className)
-  reg = new RegExp("(?:^|\\s+)" + className + "(?!\S)", "g")
+  reg = new RegExp("(?:^|\\s+)" + className + "(?!\\S)", "g")
   element.className = element.className.replace(reg, "")
   return
 
