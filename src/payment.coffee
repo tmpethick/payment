@@ -52,13 +52,6 @@ on_ = (element, eventName, callback) ->
   element['on' + eventName] = callback
   return
 
-preventDefault = (eventObject) ->
-  if typeof eventObject.preventDefault is "function"
-    eventObject.preventDefault()
-    return
-  eventObject.returnValue = false
-  false
-
 normalizeEvent = (e) ->
   original = e
   e =
@@ -71,6 +64,22 @@ normalizeEvent = (e) ->
     e.which = if original.charCode? then original.charCode else original.keyCode
   return e
 
+preventDefault = (eventObject) ->
+  if typeof eventObject.preventDefault is "function"
+    eventObject.preventDefault()
+    return
+  eventObject.returnValue = false
+  false
+
+@payment.utils =
+  hasClass: hasClass
+  addClass: addClass
+  removeClass: removeClass
+  toggleClass: toggleClass
+  trim: trim
+  on_: on_
+  normalizeEvent: normalizeEvent
+  preventDefault: preventDefault
 
 # Library specific utils
 

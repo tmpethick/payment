@@ -224,3 +224,79 @@ describe 'payment', ->
       assert.equal(payment.cardType('6236265930072952775'), 'unionpay')
       assert.equal(payment.cardType('6204679475679144515'), 'unionpay')
       assert.equal(payment.cardType('6216657720782466507'), 'unionpay')
+
+describe 'payment.utils', ->
+  createElementWithClass = (className) ->
+      el = document.createElement('div')
+      el.className = className
+      return el
+
+  describe 'Adding a class', ->
+    it 'to an empty class', ->
+      el = createElementWithClass('')
+      payment.utils.addClass(el, 'first')
+      assert.equal el.className, 'first'
+
+    it 'to an element with an existing class', ->
+      el = createElementWithClass('first')
+      payment.utils.addClass(el, 'second')
+      assert.equal el.className, 'first second'
+
+    it 'should not get it if the element already has it', ->
+      el = createElementWithClass('first')
+      payment.utils.addClass(el, 'first')
+      assert.equal el.className, 'first'
+
+  describe 'Removing a class', ->
+    it 'should not fail when class does not exist', ->
+      el = createElementWithClass('')
+      payment.utils.removeClass(el, 'first')
+      assert.equal el.className, ''
+
+    it 'that is the last in className', ->
+      el = createElementWithClass('first second third')
+      payment.utils.removeClass(el, 'third')
+      assert.equal el.className, 'first second'
+
+    it 'that is the first in className', ->
+      el = createElementWithClass('first second third')
+      payment.utils.removeClass(el, 'first')
+      assert.equal el.className, ' second third'
+
+    it 'that is in the middle of the className', ->
+      el = createElementWithClass('first second third')
+      payment.utils.removeClass(el, 'second')
+      assert.equal el.className, 'first third'
+
+    it 'should remove multiple version of the same class', ->
+      el = createElementWithClass('first second second')
+      payment.utils.removeClass(el, 'second')
+      assert.equal el.className, 'first'
+
+  describe 'Toggle a class', ->
+    it 'should remove the class if the element already has it', ->
+      el = createElementWithClass('first')
+      payment.utils.toggleClass(el, 'first')
+      assert.equal el.className, ''
+
+    it 'should add the class if the element does not already has the class', ->
+      el = createElementWithClass('')
+      payment.utils.toggleClass(el, 'first')
+      assert.equal el.className, 'first'
+
+    it 'should add if forced', ->
+      el = createElementWithClass('')
+      payment.utils.toggleClass(el, 'first', true)
+      assert.equal el.className, 'first'
+
+    it 'should remove if forced', ->
+      el = createElementWithClass('first')
+      payment.utils.toggleClass(el, 'first', false)
+      assert.equal el.className, ''
+
+  describe 'Trim a string', ->
+    it 'should trim a string', ->
+      assert.equal payment.utils.trim('  string '), 'string'
+
+    it 'should convert a integer', ->
+      assert.equal payment.utils.trim(1), '1'
