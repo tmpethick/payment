@@ -160,6 +160,8 @@ cards = [
   }
 ]
 
+cardTypeListeners = {}
+
 cardFromNumber = (num) ->
   num = (num + '').replace(/\D/g, '')
   return card for card in cards when card.pattern.test(num)
@@ -383,6 +385,11 @@ setCardType = (e) ->
 
     addClass(target, cardType)
     toggleClass(target, 'identified', cardType isnt 'unknown')
+    callbacks = cardTypeListeners[target]
+    if callbacks
+      for callback in callbacks
+        callback(target, cardType)
+    return
 
 # Public
 
@@ -490,6 +497,15 @@ payment.validateCardCVC = (cvc, type) ->
 payment.cardType = (num) ->
   return null unless num
   cardFromNumber(num)?.type or null
+
+payment.onCardType = (element, callback) ->
+  cardTypeListeners[element] ?= []
+  cardTypeListeners[element].push(callback)
+  return
+
+payment.offCardType = (element) ->
+  delete cardTypeListeners[element]
+  return
 
 payment.formatCardNumberString = (num) ->
   card = cardFromNumber(num)

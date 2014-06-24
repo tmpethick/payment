@@ -46,6 +46,7 @@ Formats card numbers:
 * Limits to 16 numbers
 * Supports American Express formatting
 * Adds a class of the card type (e.g. 'visa') to the input
+* Adds the class `identified` to the input if the card type is identified.
 
 Example:
 
@@ -135,6 +136,21 @@ payment.validateCardCVC('123', 'amex'); //=> true
 payment.validateCardCVC('1234', 'amex'); //=> true
 payment.validateCardCVC('12344'); //=> false
 ```
+
+### payment.onCardType(element, callback)
+
+Listen to changes of the card type.
+
+Example:
+``` javascript
+payment.onCardType(document.querySelector('input.cc-num), function(element, cardType) {
+    document.querySelector('.card-type').innerText = cardType;
+})
+```
+
+### payment.offCardType(element)
+
+Removes all listeners for that specific element.
 
 ### payment.cardType(number)
 
